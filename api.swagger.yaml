@@ -1,0 +1,1429 @@
+openapi: 3.0.3
+info:
+  title: Con Đường Lịch Sử API
+  description: |
+    REST API cho ứng dụng Con Đường Lịch Sử — khám phá danh nhân lịch sử Việt Nam
+    qua GPS, thử thách, và cộng đồng.
+
+    **Authentication:** Bearer JWT (access token).
+    Token được lấy qua `/auth/login` hoặc `/auth/google`, cần đính kèm header
+    `Authorization: Bearer <accessToken>` cho tất cả route có ký hiệu 🔒.
+
+    **Refresh flow:** Khi nhận 401, client gọi `POST /auth/refresh` để lấy token mới,
+    sau đó retry request gốc. Nếu refresh cũng 401 → clear token → redirect `/login`.
+  version: 1.0.0
+  contact:
+    name: Con Đường Lịch Sử Team
+
+servers:
+  - url: https://dev-api.conduonglichsu.vn/api
+    description: Development
+  - url: https://api.conduonglichsu.vn/api
+    description: Production
+
+tags:
+  - name: Auth
+    description: Xác thực & quản lý phiên đăng nhập
+  - name: Users
+    description: Hồ sơ người dùng, huy hiệu, lịch sử khám phá
+  - name: Heroes
+    description: Danh nhân lịch sử & dòng thời gian sự kiện
+  - name: Streets
+    description: Tên đường & liên kết danh nhân (GPS-based)
+  - name: Explore
+    description: Nội dung nổi bật cho tab Khám Phá
+  - name: Challenges
+    description: Thử thách, nộp bài check-in, bảng xếp hạng
+  - name: Community
+    description: Bài đăng, bình luận, lượt thích
+  - name: Notifications
+    description: Thông báo trong app
+  - name: Home
+    description: Dữ liệu tổng hợp cho trang chủ
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PATHS
+# ─────────────────────────────────────────────────────────────────────────────
+paths:
+
+  # ── AUTH ──────────────────────────────────────────────────────────────────
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Đăng ký tài khoản mới
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, name]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                password:
+                  type: string
+                  minLength: 8
+                  example: "Secure@123"
+                name:
+                  type: string
+                  example: Nguyễn Văn An
+      responses:
+        '201':
+          description: Đăng ký thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Validation'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Đăng nhập bằng email & mật khẩu
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Đăng nhập thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/google:
+    post:
+      tags: [Auth]
+      summary: Đăng nhập / đăng ký bằng Google OAuth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idToken]
+              properties:
+                idToken:
+                  type: string
+                  description: Google ID token từ client SDK
+      responses:
+        '200':
+          description: Thành công (tạo mới hoặc đăng nhập lại)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Làm mới access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Token mới
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  refreshToken:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Đăng xuất (thu hồi refresh token)
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Đăng xuất thành công
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── USERS ─────────────────────────────────────────────────────────────────
+
+  /users/me:
+    get:
+      tags: [Users]
+      summary: 🔒 Lấy hồ sơ người dùng hiện tại
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Thông tin hồ sơ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    put:
+      tags: [Users]
+      summary: 🔒 Cập nhật hồ sơ người dùng
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Nguyễn Văn An
+                bio:
+                  type: string
+                  example: Đam mê khám phá lịch sử Việt Nam
+                avatarFile:
+                  type: string
+                  format: binary
+                  description: Ảnh đại diện (jpg/png, tối đa 5MB)
+      responses:
+        '200':
+          description: Hồ sơ đã cập nhật
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Validation'
+
+  /users/me/badges:
+    get:
+      tags: [Users]
+      summary: 🔒 Lấy danh sách huy hiệu (cả đã đạt và chưa đạt)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Danh sách huy hiệu
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Badge'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/me/history:
+    get:
+      tags: [Users]
+      summary: 🔒 Lấy lịch sử khám phá (đường phố & danh nhân đã ghé thăm)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Lịch sử theo nhóm ngày
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HistoryGroup'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── HEROES ────────────────────────────────────────────────────────────────
+
+  /heroes:
+    get:
+      tags: [Heroes]
+      summary: Danh sách danh nhân (có lọc & phân trang)
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Tìm kiếm theo tên
+        - name: era
+          in: query
+          schema:
+            type: string
+            enum: [hung_vuong, bac_thuoc, ly_tran, le, nguyen, can_dai]
+          description: Lọc theo thời đại
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [military, culture, science, politics]
+          description: Lọc theo lĩnh vực
+        - name: province
+          in: query
+          schema:
+            type: string
+          description: Lọc theo tỉnh/thành phố
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Danh sách danh nhân phân trang
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Hero'
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+
+  /heroes/{id}:
+    get:
+      tags: [Heroes]
+      summary: Chi tiết một danh nhân
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Thông tin danh nhân
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hero'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /heroes/{id}/events:
+    get:
+      tags: [Heroes]
+      summary: Dòng thời gian sự kiện của danh nhân
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Danh sách sự kiện theo thứ tự năm
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HeroEvent'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── STREETS ───────────────────────────────────────────────────────────────
+
+  /streets/nearby:
+    get:
+      tags: [Streets]
+      summary: 🔒 Tìm đường phố gần vị trí GPS hiện tại
+      description: |
+        Sử dụng PostGIS `ST_DWithin` để tìm các tên đường trong bán kính cho trước.
+        Yêu cầu quyền Location trên thiết bị.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+          example: 10.7769
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+          example: 106.7009
+        - name: radiusMeters
+          in: query
+          schema:
+            type: number
+            default: 150
+          description: Bán kính tìm kiếm (mét), mặc định 150m
+      responses:
+        '200':
+          description: Danh sách đường phố lân cận
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Street'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /streets/{id}:
+    get:
+      tags: [Streets]
+      summary: Chi tiết một tên đường
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Thông tin tên đường
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Street'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── EXPLORE ───────────────────────────────────────────────────────────────
+
+  /explore/featured:
+    get:
+      tags: [Explore]
+      summary: Nội dung nổi bật cho tab Khám Phá
+      description: Trả về danh nhân featured + danh sách thẻ danh nhân để hiển thị trên map
+      responses:
+        '200':
+          description: Dữ liệu nổi bật
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExploreFeatured'
+
+  # ── CHALLENGES ────────────────────────────────────────────────────────────
+
+  /challenges:
+    get:
+      tags: [Challenges]
+      summary: Danh sách thử thách
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, upcoming, ended]
+          description: Lọc theo trạng thái
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Danh sách thử thách
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Challenge'
+                  total:
+                    type: integer
+
+  /challenges/{id}:
+    get:
+      tags: [Challenges]
+      summary: Chi tiết một thử thách
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Thông tin thử thách
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Challenge'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /challenges/{id}/submit:
+    post:
+      tags: [Challenges]
+      summary: 🔒 Nộp bài check-in thử thách
+      description: |
+        Upload ảnh check-in kèm tọa độ GPS.
+        Backend sẽ:
+        1. Kiểm tra GPS EXIF của ảnh có khớp tọa độ người dùng gửi lên
+        2. Tính khoảng cách giữa vị trí nộp bài và `targetLat/Lng`
+        3. Từ chối nếu khoảng cách > `targetRadius` mét (422 BusinessLogicFailure)
+        4. Tạo submission với status `pending` (chờ duyệt) hoặc `approved` (auto)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [lat, lng]
+              properties:
+                photoFile:
+                  type: string
+                  format: binary
+                  description: Ảnh check-in (jpg/png)
+                lat:
+                  type: number
+                  format: double
+                  description: Vĩ độ GPS lúc check-in
+                lng:
+                  type: number
+                  format: double
+                  description: Kinh độ GPS lúc check-in
+      responses:
+        '201':
+          description: Nộp bài thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Submission'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Ngoài bán kính check-in hoặc EXIF không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /challenges/{id}/leaderboard:
+    get:
+      tags: [Challenges]
+      summary: Bảng xếp hạng của một thử thách
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Bảng xếp hạng
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LeaderboardEntry'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── COMMUNITY ─────────────────────────────────────────────────────────────
+
+  /posts:
+    get:
+      tags: [Community]
+      summary: Feed bài đăng cộng đồng (cursor pagination)
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          description: Cursor của trang kế tiếp (lấy từ `nextCursor` của response trước)
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Danh sách bài đăng
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Post'
+                  nextCursor:
+                    type: string
+                    nullable: true
+                  total:
+                    type: integer
+
+    post:
+      tags: [Community]
+      summary: 🔒 Tạo bài đăng mới
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                  maxLength: 500
+                  example: Hôm nay mình ghé thăm Đền Hùng, cảm giác tự hào lắm!
+                mediaFiles:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Ảnh đính kèm (tối đa 5 ảnh, mỗi ảnh tối đa 10MB)
+                heroTag:
+                  type: string
+                  nullable: true
+                  example: Trần Hưng Đạo
+                streetTag:
+                  type: string
+                  nullable: true
+                  example: Phố Trần Hưng Đạo
+                lat:
+                  type: number
+                  format: double
+                  nullable: true
+                lng:
+                  type: number
+                  format: double
+                  nullable: true
+      responses:
+        '201':
+          description: Bài đăng đã được tạo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Validation'
+
+  /posts/{id}:
+    get:
+      tags: [Community]
+      summary: Chi tiết một bài đăng
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Thông tin bài đăng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /posts/{id}/like:
+    post:
+      tags: [Community]
+      summary: 🔒 Thích bài đăng
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Đã thích
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Đã thích trước đó
+
+    delete:
+      tags: [Community]
+      summary: 🔒 Bỏ thích bài đăng
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Đã bỏ thích
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /posts/{id}/comments:
+    get:
+      tags: [Community]
+      summary: Danh sách bình luận của bài đăng
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Danh sách bình luận
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Comment'
+                  nextCursor:
+                    type: string
+                    nullable: true
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags: [Community]
+      summary: 🔒 Đăng bình luận
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                  maxLength: 300
+      responses:
+        '201':
+          description: Bình luận đã được tạo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── NOTIFICATIONS ─────────────────────────────────────────────────────────
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: 🔒 Danh sách thông báo của người dùng
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Danh sách thông báo
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /notifications/{id}/read:
+    put:
+      tags: [Notifications]
+      summary: 🔒 Đánh dấu thông báo đã đọc
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Đã đánh dấu đọc
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── HOME ──────────────────────────────────────────────────────────────────
+
+  /home:
+    get:
+      tags: [Home]
+      summary: 🔒 Dữ liệu tổng hợp cho trang chủ
+      description: |
+        Trả về toàn bộ dữ liệu cần thiết để render HomePage trong một request:
+        thống kê người dùng, banner danh nhân, thẻ khám phá, và đường phố nổi bật.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dữ liệu trang chủ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HomeData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COMPONENTS
+# ─────────────────────────────────────────────────────────────────────────────
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: ID của resource
+
+  # ── SCHEMAS ───────────────────────────────────────────────────────────────
+  schemas:
+
+    # AUTH
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        accessToken:
+          type: string
+          description: JWT access token (TTL ngắn, ~15 phút)
+        refreshToken:
+          type: string
+          description: Refresh token (TTL dài, ~30 ngày)
+
+    # USER
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          example: u1
+        email:
+          type: string
+          format: email
+          example: user@conduonglichsu.vn
+        name:
+          type: string
+          example: Nguyễn Văn An
+        avatarUrl:
+          type: string
+          nullable: true
+          example: https://cdn.conduonglichsu.vn/avatars/u1.jpg
+        bio:
+          type: string
+          nullable: true
+        points:
+          type: integer
+          example: 1250
+        level:
+          type: integer
+          example: 5
+        role:
+          type: string
+          enum: [user, admin, super_admin]
+          example: user
+        streak:
+          type: integer
+          description: Số ngày khám phá liên tiếp
+          example: 7
+        streetsExplored:
+          type: integer
+          description: Tổng số đường đã khám phá
+          example: 47
+        createdAt:
+          type: string
+          format: date-time
+
+    # HERO
+    Hero:
+      type: object
+      properties:
+        id:
+          type: string
+          example: h1
+        fullName:
+          type: string
+          example: Trần Hưng Đạo
+        aliasName:
+          type: string
+          nullable: true
+          example: Hưng Đạo Vương
+        birthYear:
+          type: integer
+          nullable: true
+          example: 1228
+        deathYear:
+          type: integer
+          nullable: true
+          example: 1300
+        province:
+          type: string
+          example: Nam Định
+        era:
+          type: string
+          enum: [hung_vuong, bac_thuoc, ly_tran, le, nguyen, can_dai]
+          example: ly_tran
+        category:
+          type: string
+          enum: [military, culture, science, politics]
+          example: military
+        bioShort:
+          type: string
+          example: Danh tướng nhà Trần, ba lần đánh thắng quân Mông Nguyên.
+        bioFull:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        quote:
+          type: string
+          nullable: true
+          example: Đầu thần chưa rơi, xin bệ hạ đừng lo.
+
+    HeroEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        heroId:
+          type: string
+        title:
+          type: string
+          example: Chiến thắng Bạch Đằng
+        description:
+          type: string
+        year:
+          type: integer
+          example: 1288
+        eventType:
+          type: string
+          enum: [birth, battle, achievement, death, other]
+          example: battle
+        imageUrl:
+          type: string
+          nullable: true
+
+    # STREET
+    Street:
+      type: object
+      properties:
+        id:
+          type: string
+          example: s1
+        name:
+          type: string
+          example: Phố Trần Hưng Đạo
+        city:
+          type: string
+          example: Hà Nội
+        province:
+          type: string
+          example: Hà Nội
+        heroId:
+          type: string
+          example: h1
+        heroName:
+          type: string
+          example: Trần Hưng Đạo
+        heroBioShort:
+          type: string
+          example: Danh tướng nhà Trần, ba lần đánh thắng quân Mông Nguyên.
+        heroAvatarUrl:
+          type: string
+          nullable: true
+        lat:
+          type: number
+          format: double
+          nullable: true
+          example: 21.0245
+        lng:
+          type: number
+          format: double
+          nullable: true
+          example: 105.8412
+
+    # EXPLORE
+    ExploreFeatured:
+      type: object
+      properties:
+        featuredHero:
+          type: object
+          properties:
+            heroId:
+              type: string
+            heroName:
+              type: string
+            era:
+              type: string
+            bio:
+              type: string
+            imagePath:
+              type: string
+        heroCards:
+          type: array
+          items:
+            type: object
+            properties:
+              heroId:
+                type: string
+              name:
+                type: string
+              era:
+                type: string
+              streetCount:
+                type: integer
+              imagePath:
+                type: string
+
+    # CHALLENGE
+    Challenge:
+      type: object
+      properties:
+        id:
+          type: string
+          example: c1
+        title:
+          type: string
+          example: Check-in Đền Trần Nam Định
+        description:
+          type: string
+        type:
+          type: string
+          enum: [checkin, cipher, race, quiz]
+          example: checkin
+        targetLat:
+          type: number
+          format: double
+          nullable: true
+          example: 20.4167
+        targetLng:
+          type: number
+          format: double
+          nullable: true
+          example: 106.1833
+        targetRadius:
+          type: number
+          nullable: true
+          description: Bán kính hợp lệ để check-in (mét)
+          example: 150
+        rewardPoints:
+          type: integer
+          example: 500
+        rewardBadge:
+          type: string
+          nullable: true
+          description: Code huy hiệu được thưởng khi hoàn thành
+          example: den_tran_explorer
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [active, upcoming, ended]
+          example: active
+        participantCount:
+          type: integer
+          example: 342
+        imageUrl:
+          type: string
+          nullable: true
+        heroId:
+          type: string
+          nullable: true
+
+    Submission:
+      type: object
+      properties:
+        id:
+          type: string
+        challengeId:
+          type: string
+        userId:
+          type: string
+        photoUrl:
+          type: string
+          nullable: true
+        lat:
+          type: number
+          format: double
+          nullable: true
+        lng:
+          type: number
+          format: double
+          nullable: true
+        submittedAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+          example: pending
+        rejectionReason:
+          type: string
+          nullable: true
+
+    LeaderboardEntry:
+      type: object
+      properties:
+        rank:
+          type: integer
+          example: 1
+        userId:
+          type: string
+        userName:
+          type: string
+          example: Minh Tuấn
+        avatarUrl:
+          type: string
+          nullable: true
+        points:
+          type: integer
+          example: 1500
+
+    # COMMUNITY
+    Post:
+      type: object
+      properties:
+        id:
+          type: string
+          example: p1
+        userId:
+          type: string
+        userName:
+          type: string
+          example: Minh Tuấn
+        userAvatar:
+          type: string
+          nullable: true
+        content:
+          type: string
+          example: Hôm nay mình ghé Đền Hùng, cảm giác tự hào lắm!
+        mediaUrls:
+          type: array
+          items:
+            type: string
+          example: []
+        heroTag:
+          type: string
+          nullable: true
+          example: Trần Hưng Đạo
+        streetTag:
+          type: string
+          nullable: true
+          example: Phố Trần Hưng Đạo
+        lat:
+          type: number
+          format: double
+          nullable: true
+        lng:
+          type: number
+          format: double
+          nullable: true
+        likeCount:
+          type: integer
+          example: 47
+        commentCount:
+          type: integer
+          example: 12
+        isLiked:
+          type: boolean
+          description: Người dùng hiện tại đã thích bài này chưa
+          example: false
+        createdAt:
+          type: string
+          format: date-time
+
+    Comment:
+      type: object
+      properties:
+        id:
+          type: string
+        postId:
+          type: string
+        userId:
+          type: string
+        userName:
+          type: string
+          example: Trần Thị Bình
+        userAvatar:
+          type: string
+          nullable: true
+        content:
+          type: string
+          example: Cảm ơn bạn đã chia sẻ!
+        likeCount:
+          type: integer
+          example: 15
+        isLiked:
+          type: boolean
+          example: false
+        createdAt:
+          type: string
+          format: date-time
+
+    # BADGE
+    Badge:
+      type: object
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+          example: first_hero
+        name:
+          type: string
+          example: Người Mới Khám Phá
+        description:
+          type: string
+          example: Khám phá danh nhân lịch sử đầu tiên
+        iconUrl:
+          type: string
+        earnedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: null = chưa đạt được
+
+    # HISTORY
+    HistoryGroup:
+      type: object
+      properties:
+        label:
+          type: string
+          example: HÔM NAY
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryItem'
+
+    HistoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [street, hero]
+        title:
+          type: string
+          example: Phố Trần Hưng Đạo
+        subtitle:
+          type: string
+          example: Hoàn Kiếm, Hà Nội
+        time:
+          type: string
+          example: "14:30"
+
+    # NOTIFICATION
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [badge, challenge, hero, community, location, system]
+          example: badge
+        title:
+          type: string
+          example: Huy hiệu mới!
+        body:
+          type: string
+          example: Bạn vừa nhận được huy hiệu "Người Mới Khám Phá"
+        time:
+          type: string
+          description: Thời gian tương đối (hiển thị)
+          example: 2 phút trước
+        isRead:
+          type: boolean
+          example: false
+        relatedId:
+          type: string
+          nullable: true
+          description: ID của entity liên quan (badgeId, challengeId, postId...)
+        createdAt:
+          type: string
+          format: date-time
+
+    # HOME
+    HomeData:
+      type: object
+      properties:
+        userStats:
+          type: object
+          properties:
+            streak:
+              type: integer
+              example: 7
+            points:
+              type: integer
+              example: 1250
+            streetsExplored:
+              type: integer
+              example: 47
+        banner:
+          type: object
+          properties:
+            heroId:
+              type: string
+            heroName:
+              type: string
+              example: Trần Hưng Đạo
+            heroAlias:
+              type: string
+              example: Hưng Đạo Vương
+            tagline:
+              type: string
+              example: Đầu thần chưa rơi, xin bệ hạ đừng lo.
+            imagePath:
+              type: string
+        exploreCards:
+          type: array
+          items:
+            type: object
+            properties:
+              heroId:
+                type: string
+              heroName:
+                type: string
+              tagText:
+                type: string
+                example: Thời Trần
+              tagColorHex:
+                type: string
+                example: "1565C0"
+              imagePath:
+                type: string
+              streetCount:
+                type: integer
+        featuredStreets:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+                example: Đường Trần Hưng Đạo
+              detail:
+                type: string
+                example: Quận 1 · TP. HCM
+
+    # ERROR
+    ErrorResponse:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+          example: 422
+        error:
+          type: string
+          example: BusinessLogicFailure
+        message:
+          type: string
+          example: Vị trí check-in nằm ngoài bán kính cho phép
+
+  # ── RESPONSES ─────────────────────────────────────────────────────────────
+  responses:
+    Unauthorized:
+      description: Chưa xác thực hoặc token hết hạn
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Không tìm thấy resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Xung đột dữ liệu (vd: email đã tồn tại)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Validation:
+      description: Dữ liệu đầu vào không hợp lệ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
