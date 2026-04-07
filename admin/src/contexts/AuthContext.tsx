@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { supabase } from '@/lib/supabase'
 import type { User } from '@/types/database'
 import type { Session } from '@supabase/supabase-js'
+import { useNavigate } from 'react-router-dom'
 
 interface AuthContextValue {
   session: Session | null
@@ -16,7 +17,8 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [adminUser, setAdminUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
   async function loadUserProfile(userId: string) {
     const { data } = await supabase
       .from('users')
@@ -30,13 +32,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: any, session: any) => {
       try {
-        setSession(session)
         if (session) {
-          const profile = await loadUserProfile(session.user.id)
-          console.log('profile',profile);
-          setAdminUser(profile)
+          setSession(session);
         } else {
-          setAdminUser(null)
+          navigate('/login')
         }
       } finally {
         setLoading(false)
@@ -45,13 +44,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => subscription.unsubscribe()
   }, [])
-  console.log('loading', loading);
+  useEffect(() => {
+    if (session) {
+      loadUserProfile(session.user.id).then(profile => {
+        setAdminUser(profile);
+      })
+    }
+  }, [session])
 
   async function signIn(email: string, password: string) {
-    console.log('Attempting to sign in with', { email, password });
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    console.log('Supabase signIn result', { data, error });
-    console.log('login data', data);
     if (error) return { error: error.message }
 
     const profile = await loadUserProfile(data.user.id)
@@ -59,7 +61,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await supabase.auth.signOut()
       return { error: 'Bạn không có quyền truy cập trang quản trị.' }
     }
-    console.log('profile',profile);
 
     setAdminUser(profile)
     return { error: null }

@@ -1,6 +1,6 @@
 export type UserRole = 'user' | 'admin' | 'super_admin'
-export type HeroEra = 'ancient' | 'medieval' | 'modern' | 'contemporary'
-export type HeroCategory = 'military' | 'political' | 'cultural' | 'scientific' | 'other'
+export type HeroEra = 'hung_vuong' | 'bac_thuoc' | 'ly_tran' | 'le' | 'nguyen' | 'can_dai'
+export type HeroCategory = 'military' | 'culture' | 'science' | 'politics'
 export type EventType = 'birth' | 'battle' | 'achievement' | 'death' | 'other'
 export type ChallengeType = 'checkin' | 'cipher' | 'race' | 'quiz'
 export type ChallengeStatus = 'active' | 'upcoming' | 'ended'
@@ -14,13 +14,16 @@ export type ExplorationHistoryType = 'street' | 'hero'
 export interface User {
   id: string
   email: string
-  full_name: string | null
+  name: string
   avatar_url: string | null
   bio: string | null
   role: UserRole
   points: number
   level: number
-  exploration_streak: number
+  streak: number
+  streets_explored: number
+  is_active: boolean
+  last_active_at: string | null
   fcm_token: string | null
   google_id: string | null
   created_at: string
@@ -33,11 +36,13 @@ export interface Hero {
   alias_name: string | null
   birth_year: number | null
   death_year: number | null
-  era: HeroEra | null
-  category: HeroCategory | null
-  bio: string | null
-  image_url: string | null
-  province: string | null
+  province: string
+  era: HeroEra
+  category: HeroCategory
+  bio_short: string
+  bio_full: string | null
+  avatar_url: string | null
+  quote: string | null
   created_at: string
   updated_at: string
 }
@@ -45,22 +50,22 @@ export interface Hero {
 export interface HeroEvent {
   id: string
   hero_id: string
-  type: EventType
-  year: number | null
+  event_type: EventType
+  year: number
   title: string
-  description: string | null
-  location: string | null
+  description: string
+  image_url: string | null
   created_at: string
-  updated_at: string
 }
 
 export interface Street {
   id: string
   name: string
-  hero_id: string | null
+  city: string
+  province: string
+  hero_id: string
   lat: number | null
   lng: number | null
-  province: string | null
   description: string | null
   created_at: string
   updated_at: string
@@ -69,17 +74,18 @@ export interface Street {
 export interface Challenge {
   id: string
   title: string
-  description: string | null
+  description: string
   type: ChallengeType
-  hero_id: string | null
-  street_id: string | null
   target_lat: number | null
   target_lng: number | null
-  radius_meters: number | null
-  start_at: string | null
-  end_at: string | null
+  target_radius: number | null
   reward_points: number
-  badge_id: string | null
+  reward_badge_id: string | null
+  hero_id: string | null
+  image_url: string | null
+  start_at: string
+  end_at: string
+  status: ChallengeStatus
   participant_count: number
   created_at: string
   updated_at: string
@@ -132,13 +138,12 @@ export interface Comment {
 
 export interface Badge {
   id: string
-  name: string
-  description: string | null
-  image_url: string | null
-  rarity: BadgeRarity
   code: string
+  name: string
+  description: string
+  icon_url: string
+  rarity: BadgeRarity
   created_at: string
-  updated_at: string
 }
 
 export interface UserBadge {
@@ -170,16 +175,16 @@ export interface ExplorationHistory {
 
 // Joined types for display
 export interface SubmissionWithUser extends ChallengeSubmission {
-  users: Pick<User, 'id' | 'full_name' | 'avatar_url' | 'email'>
+  users: Pick<User, 'id' | 'name' | 'avatar_url' | 'email'>
 }
 
 export interface PostWithUser extends Post {
-  users: Pick<User, 'id' | 'full_name' | 'avatar_url'>
+  users: Pick<User, 'id' | 'name' | 'avatar_url'>
   post_media: PostMedia[]
 }
 
 export interface CommentWithUser extends Comment {
-  users: Pick<User, 'id' | 'full_name' | 'avatar_url'>
+  users: Pick<User, 'id' | 'name' | 'avatar_url'>
 }
 
 export interface StreetWithHero extends Street {
@@ -192,25 +197,18 @@ export interface ChallengeWithRelations extends Challenge {
 }
 
 // Supabase Database type stub (for createClient generic)
-export interface Database {
-  public: {
-    Tables: {
-      users: { Row: User; Insert: Partial<User>; Update: Partial<User> }
-      heroes: { Row: Hero; Insert: Partial<Hero>; Update: Partial<Hero> }
-      hero_events: { Row: HeroEvent; Insert: Partial<HeroEvent>; Update: Partial<HeroEvent> }
-      streets: { Row: Street; Insert: Partial<Street>; Update: Partial<Street> }
-      challenges: { Row: Challenge; Insert: Partial<Challenge>; Update: Partial<Challenge> }
-      challenge_submissions: { Row: ChallengeSubmission; Insert: Partial<ChallengeSubmission>; Update: Partial<ChallengeSubmission> }
-      posts: { Row: Post; Insert: Partial<Post>; Update: Partial<Post> }
-      post_media: { Row: PostMedia; Insert: Partial<PostMedia>; Update: Partial<PostMedia> }
-      comments: { Row: Comment; Insert: Partial<Comment>; Update: Partial<Comment> }
-      badges: { Row: Badge; Insert: Partial<Badge>; Update: Partial<Badge> }
-      user_badges: { Row: UserBadge; Insert: Partial<UserBadge>; Update: Partial<UserBadge> }
-      notifications: { Row: Notification; Insert: Partial<Notification>; Update: Partial<Notification> }
-      exploration_history: { Row: ExplorationHistory; Insert: Partial<ExplorationHistory>; Update: Partial<ExplorationHistory> }
-    }
-    Views: Record<string, never>
-    Functions: Record<string, never>
-    Enums: Record<string, never>
-  }
+export type Tables = {
+  users: User
+  heroes: Hero
+  hero_events: HeroEvent
+  streets: Street
+  challenges: Challenge
+  challenge_submissions: ChallengeSubmission
+  posts: Post
+  post_media: PostMedia
+  comments: Comment
+  badges: Badge
+  user_badges: UserBadge
+  notifications: Notification
+  exploration_history: ExplorationHistory
 }

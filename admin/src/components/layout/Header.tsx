@@ -19,7 +19,7 @@ export function Header() {
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
             <User className="h-4 w-4" />
           </div>
-          <span className="font-medium">{adminUser?.full_name ?? adminUser?.email}</span>
+          <span className="font-medium">{adminUser?.name ?? adminUser?.email}</span>
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
             {adminUser?.role === 'super_admin' ? 'Super Admin' : 'Admin'}
           </span>

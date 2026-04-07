@@ -40,7 +40,7 @@ export function UsersPage() {
       .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
 
     if (search) {
-      query = query.or(`email.ilike.%${search}%,full_name.ilike.%${search}%`)
+      query = query.or(`email.ilike.%${search}%,name.ilike.%${search}%`)
     }
 
     const { data, count } = await query
@@ -59,11 +59,11 @@ export function UsersPage() {
 
   const columns: ColumnDef<User>[] = [
     {
-      accessorKey: 'full_name',
+      accessorKey: 'name',
       header: 'Tên',
       cell: ({ row }) => (
         <div>
-          <p className="font-medium text-gray-900">{row.original.full_name ?? '—'}</p>
+          <p className="font-medium text-gray-900">{row.original.name}</p>
           <p className="text-xs text-gray-400">{row.original.email}</p>
         </div>
       ),
@@ -102,7 +102,7 @@ export function UsersPage() {
       header: 'Level',
     },
     {
-      accessorKey: 'exploration_streak',
+      accessorKey: 'streak',
       header: 'Streak',
       cell: ({ getValue }) => `${String(getValue())} ngày`,
     },

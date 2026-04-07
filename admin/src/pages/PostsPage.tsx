@@ -23,7 +23,7 @@ export function PostsPage() {
     setLoading(true)
     let query = supabase
       .from('posts')
-      .select('*, users(id, full_name, avatar_url), post_media(id, url, type)', { count: 'exact' })
+      .select('*, users(id, name, avatar_url), post_media(id, url, media_type)', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
 
@@ -51,7 +51,7 @@ export function PostsPage() {
       cell: ({ row }) => (
         <div className="max-w-md">
           <p className="text-sm text-gray-900 line-clamp-2">{row.original.content}</p>
-          <p className="mt-0.5 text-xs text-gray-400">{row.original.users?.full_name ?? '—'}</p>
+          <p className="mt-0.5 text-xs text-gray-400">{row.original.users?.name ?? '—'}</p>
         </div>
       ),
     },

@@ -8,7 +8,7 @@ import { X } from 'lucide-react'
 
 const schema = z.object({
   title: z.string().min(1, 'Bắt buộc'),
-  body: z.string().optional().nullable(),
+  body: z.string().min(1, 'Bắt buộc'),
   type: z.enum(['badge', 'challenge', 'hero', 'community', 'location', 'system']),
   target: z.enum(['all', 'specific']),
   user_id: z.string().uuid().optional().nullable(),
@@ -22,7 +22,7 @@ interface NotificationFormProps {
 }
 
 export function NotificationForm({ onClose, onSaved }: NotificationFormProps) {
-  const [users, setUsers] = useState<Pick<User, 'id' | 'full_name' | 'email'>[]>([])
+  const [users, setUsers] = useState<Pick<User, 'id' | 'name' | 'email'>[]>([])
   const [sending, setSending] = useState(false)
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
@@ -33,7 +33,7 @@ export function NotificationForm({ onClose, onSaved }: NotificationFormProps) {
   const target = watch('target')
 
   useEffect(() => {
-    supabase.from('users').select('id, full_name, email').order('full_name').then(({ data }: { data: Pick<User, 'id' | 'full_name' | 'email'>[] | null }) => {
+    supabase.from('users').select('id, name, email').order('name').then(({ data }: { data: Pick<User, 'id' | 'name' | 'email'>[] | null }) => {
       setUsers(data ?? [])
     })
   }, [])
@@ -42,7 +42,7 @@ export function NotificationForm({ onClose, onSaved }: NotificationFormProps) {
   async function onSubmit(data: any) {
     data = data as FormData
     setSending(true)
-    const base = { title: data.title, body: data.body || null, type: data.type, is_read: false }
+    const base = { title: data.title, body: data.body, type: data.type, is_read: false }
 
     if (data.target === 'all') {
       const insertRows = users.map((u) => ({ ...base, user_id: u.id }))
@@ -95,14 +95,15 @@ export function NotificationForm({ onClose, onSaved }: NotificationFormProps) {
               <select {...register('user_id')} className="input">
                 <option value="">— Chọn —</option>
                 {users.map((u) => (
-                  <option key={u.id} value={u.id}>{u.full_name ?? u.email}</option>
+                  <option key={u.id} value={u.id}>{u.name ?? u.email}</option>
                 ))}
               </select>
             </div>
           )}
           <div>
-            <label className="label">Nội dung</label>
+            <label className="label">Nội dung *</label>
             <textarea {...register('body')} rows={3} className="input resize-none" />
+            {errors.body && <p className="err">{errors.body.message}</p>}
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary">Hủy</button>

@@ -34,7 +34,7 @@ export function SubmissionsPage() {
     const [{ data: chal }, { data: subs, count }] = await Promise.all([
       supabase.from('challenges').select('*').eq('id', id!).single(),
       supabase.from('challenge_submissions')
-        .select('*, users(id, full_name, avatar_url, email)', { count: 'exact' })
+        .select('*, users(id, name, avatar_url, email)', { count: 'exact' })
         .eq('challenge_id', id!)
         .order('submitted_at', { ascending: false })
         .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1),
@@ -77,7 +77,7 @@ export function SubmissionsPage() {
       header: 'Người dùng',
       cell: ({ row }) => (
         <div>
-          <p className="font-medium text-gray-900">{row.original.users?.full_name ?? '—'}</p>
+          <p className="font-medium text-gray-900">{row.original.users?.name ?? '—'}</p>
           <p className="text-xs text-gray-400">{row.original.users?.email}</p>
         </div>
       ),

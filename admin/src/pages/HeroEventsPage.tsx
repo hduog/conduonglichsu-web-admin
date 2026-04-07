@@ -46,9 +46,9 @@ export function HeroEventsPage() {
   }
 
   const columns: ColumnDef<HeroEvent>[] = [
-    { accessorKey: 'year', header: 'Năm', cell: ({ getValue }) => getValue() ?? '—' },
+    { accessorKey: 'year', header: 'Năm' },
     {
-      accessorKey: 'type',
+      accessorKey: 'event_type',
       header: 'Loại',
       cell: ({ getValue }) => {
         const v = getValue() as EventType
@@ -56,11 +56,9 @@ export function HeroEventsPage() {
       },
     },
     { accessorKey: 'title', header: 'Tiêu đề' },
-    { accessorKey: 'location', header: 'Địa điểm', cell: ({ getValue }) => (getValue() as string | null) ?? '—' },
-    { accessorKey: 'description', header: 'Mô tả', cell: ({ getValue }) => {
-      const v = getValue() as string | null
-      return v ? <span className="line-clamp-2 max-w-xs text-xs text-gray-500">{v}</span> : '—'
-    }},
+    { accessorKey: 'description', header: 'Mô tả', cell: ({ getValue }) => (
+      <span className="line-clamp-2 max-w-xs text-xs text-gray-500">{getValue() as string}</span>
+    )},
     {
       id: 'actions',
       header: '',

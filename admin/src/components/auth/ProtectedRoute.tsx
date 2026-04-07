@@ -2,8 +2,7 @@ import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 
 export function ProtectedRoute() {
-  const { session, adminUser, loading } = useAuth()
-
+  const { loading } = useAuth()
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -11,10 +10,5 @@ export function ProtectedRoute() {
       </div>
     )
   }
-
-  if (!session || !adminUser) {
-    return <Navigate to="/login" replace />
-  }
-
   return <Outlet />
 }

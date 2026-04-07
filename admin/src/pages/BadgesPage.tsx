@@ -56,8 +56,8 @@ export function BadgesPage() {
       header: 'Tên huy hiệu',
       cell: ({ row }) => (
         <div className="flex items-center gap-3">
-          {row.original.image_url && (
-            <img src={row.original.image_url} alt="" className="h-8 w-8 rounded-full object-cover" />
+          {row.original.icon_url && (
+            <img src={row.original.icon_url} alt="" className="h-8 w-8 rounded-full object-cover" />
           )}
           <div>
             <p className="font-medium text-gray-900">{row.original.name}</p>

@@ -8,16 +8,17 @@ import { X } from 'lucide-react'
 
 const schema = z.object({
   title: z.string().min(1, 'Bắt buộc'),
-  description: z.string().optional().nullable(),
+  description: z.string().min(1, 'Bắt buộc'),
   type: z.enum(['checkin', 'cipher', 'race', 'quiz']),
   hero_id: z.string().optional().nullable(),
   target_lat: z.preprocess((v) => (v === '' || v == null ? null : Number(v)), z.number().nullable().optional()),
   target_lng: z.preprocess((v) => (v === '' || v == null ? null : Number(v)), z.number().nullable().optional()),
-  radius_meters: z.preprocess((v) => (v === '' || v == null ? null : Number(v)), z.number().int().nullable().optional()),
-  start_at: z.string().optional().nullable(),
-  end_at: z.string().optional().nullable(),
+  target_radius: z.preprocess((v) => (v === '' || v == null ? null : Number(v)), z.number().nullable().optional()),
   reward_points: z.preprocess((v) => Number(v ?? 0), z.number().int().min(0)),
-  badge_id: z.string().optional().nullable(),
+  reward_badge_id: z.string().optional().nullable(),
+  image_url: z.string().url('URL không hợp lệ').optional().nullable().or(z.literal('')),
+  start_at: z.string().min(1, 'Bắt buộc'),
+  end_at: z.string().min(1, 'Bắt buộc'),
 })
 
 type FormData = z.infer<typeof schema>
@@ -37,9 +38,10 @@ export function ChallengeForm({ challenge, onClose, onSaved }: ChallengeFormProp
     resolver: zodResolver(schema) as any,
     defaultValues: {
       ...challenge,
-      start_at: challenge?.start_at ? challenge.start_at.slice(0, 16) : undefined,
-      end_at: challenge?.end_at ? challenge.end_at.slice(0, 16) : undefined,
+      start_at: challenge?.start_at ? challenge.start_at.slice(0, 16) : '',
+      end_at: challenge?.end_at ? challenge.end_at.slice(0, 16) : '',
       reward_points: challenge?.reward_points ?? 0,
+      image_url: challenge?.image_url ?? '',
     },
   })
 
@@ -57,11 +59,18 @@ export function ChallengeForm({ challenge, onClose, onSaved }: ChallengeFormProp
   async function onSubmit(data: any) {
     data = data as FormData
     const payload = {
-      ...data,
+      title: data.title,
+      description: data.description,
+      type: data.type,
       hero_id: data.hero_id || null,
-      badge_id: data.badge_id || null,
-      start_at: data.start_at || null,
-      end_at: data.end_at || null,
+      target_lat: data.target_lat ?? null,
+      target_lng: data.target_lng ?? null,
+      target_radius: data.target_radius ?? null,
+      reward_points: data.reward_points,
+      reward_badge_id: data.reward_badge_id || null,
+      image_url: data.image_url || null,
+      start_at: data.start_at,
+      end_at: data.end_at,
     }
     if (challenge) {
       await supabase.from('challenges').update(payload).eq('id', challenge.id)
@@ -111,31 +120,39 @@ export function ChallengeForm({ challenge, onClose, onSaved }: ChallengeFormProp
               <input type="number" step="any" {...register('target_lng')} className="input" />
             </div>
             <div>
-              <label className="label">Bán kính (mét)</label>
-              <input type="number" {...register('radius_meters')} className="input" />
+              <label className="label">Bán kính hợp lệ (mét)</label>
+              <input type="number" {...register('target_radius')} className="input" />
             </div>
             <div>
               <label className="label">Điểm thưởng *</label>
               <input type="number" {...register('reward_points')} className="input" />
             </div>
             <div>
-              <label className="label">Bắt đầu</label>
+              <label className="label">Bắt đầu *</label>
               <input type="datetime-local" {...register('start_at')} className="input" />
+              {errors.start_at && <p className="err">{errors.start_at.message}</p>}
             </div>
             <div>
-              <label className="label">Kết thúc</label>
+              <label className="label">Kết thúc *</label>
               <input type="datetime-local" {...register('end_at')} className="input" />
+              {errors.end_at && <p className="err">{errors.end_at.message}</p>}
             </div>
             <div className="col-span-2">
               <label className="label">Huy hiệu thưởng</label>
-              <select {...register('badge_id')} className="input">
+              <select {...register('reward_badge_id')} className="input">
                 <option value="">— Không có —</option>
                 {badges.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </div>
             <div className="col-span-2">
-              <label className="label">Mô tả</label>
+              <label className="label">URL ảnh bìa</label>
+              <input {...register('image_url')} className="input" placeholder="https://..." />
+              {errors.image_url && <p className="err">{errors.image_url.message}</p>}
+            </div>
+            <div className="col-span-2">
+              <label className="label">Mô tả *</label>
               <textarea {...register('description')} rows={3} className="input resize-none" />
+              {errors.description && <p className="err">{errors.description.message}</p>}
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">

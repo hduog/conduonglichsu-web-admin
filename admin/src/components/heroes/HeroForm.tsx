@@ -7,14 +7,16 @@ import { X } from 'lucide-react'
 
 const schema = z.object({
   full_name: z.string().min(1, 'Bắt buộc'),
-  alias_name: z.string().optional(),
+  alias_name: z.string().optional().nullable(),
   birth_year: z.coerce.number().int().optional().nullable(),
   death_year: z.coerce.number().int().optional().nullable(),
-  era: z.enum(['ancient', 'medieval', 'modern', 'contemporary']).optional().nullable(),
-  category: z.enum(['military', 'political', 'cultural', 'scientific', 'other']).optional().nullable(),
-  bio: z.string().optional().nullable(),
-  image_url: z.string().url('URL không hợp lệ').optional().nullable().or(z.literal('')),
-  province: z.string().optional().nullable(),
+  province: z.string().min(1, 'Bắt buộc'),
+  era: z.enum(['hung_vuong', 'bac_thuoc', 'ly_tran', 'le', 'nguyen', 'can_dai']),
+  category: z.enum(['military', 'culture', 'science', 'politics']),
+  bio_short: z.string().min(1, 'Bắt buộc').max(500, 'Tối đa 500 ký tự'),
+  bio_full: z.string().optional().nullable(),
+  avatar_url: z.string().url('URL không hợp lệ').optional().nullable().or(z.literal('')),
+  quote: z.string().optional().nullable(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -29,16 +31,30 @@ export function HeroForm({ hero, onClose, onSaved }: HeroFormProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema) as any,
-    defaultValues: hero ? { ...hero, alias_name: hero.alias_name ?? undefined } : {},
+    defaultValues: hero ? {
+      ...hero,
+      alias_name: hero.alias_name ?? '',
+      bio_full: hero.bio_full ?? '',
+      avatar_url: hero.avatar_url ?? '',
+      quote: hero.quote ?? '',
+    } : {},
   })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async function onSubmit(data: any) {
     data = data as FormData
     const payload = {
-      ...data,
-      image_url: data.image_url || null,
+      full_name: data.full_name,
       alias_name: data.alias_name || null,
+      birth_year: data.birth_year ?? null,
+      death_year: data.death_year ?? null,
+      province: data.province,
+      era: data.era,
+      category: data.category,
+      bio_short: data.bio_short,
+      bio_full: data.bio_full || null,
+      avatar_url: data.avatar_url || null,
+      quote: data.quote || null,
     }
     if (hero) {
       await supabase.from('heroes').update(payload).eq('id', hero.id)
@@ -69,12 +85,13 @@ export function HeroForm({ hero, onClose, onSaved }: HeroFormProps) {
               {errors.full_name && <p className="err">{errors.full_name.message}</p>}
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Tên khác</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Tên hiệu</label>
               <input {...register('alias_name')} className="input" />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Tỉnh/Thành phố</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Tỉnh/Thành phố *</label>
               <input {...register('province')} className="input" />
+              {errors.province && <p className="err">{errors.province.message}</p>}
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Năm sinh</label>
@@ -85,34 +102,46 @@ export function HeroForm({ hero, onClose, onSaved }: HeroFormProps) {
               <input type="number" {...register('death_year')} className="input" />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Thời đại</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Thời đại *</label>
               <select {...register('era')} className="input">
                 <option value="">—</option>
-                <option value="ancient">Cổ đại</option>
-                <option value="medieval">Trung đại</option>
-                <option value="modern">Cận đại</option>
-                <option value="contemporary">Hiện đại</option>
+                <option value="hung_vuong">Hùng Vương</option>
+                <option value="bac_thuoc">Bắc thuộc</option>
+                <option value="ly_tran">Lý – Trần</option>
+                <option value="le">Lê</option>
+                <option value="nguyen">Nguyễn</option>
+                <option value="can_dai">Cận đại</option>
               </select>
+              {errors.era && <p className="err">{errors.era.message}</p>}
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Lĩnh vực</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Lĩnh vực *</label>
               <select {...register('category')} className="input">
                 <option value="">—</option>
                 <option value="military">Quân sự</option>
-                <option value="political">Chính trị</option>
-                <option value="cultural">Văn hóa</option>
-                <option value="scientific">Khoa học</option>
-                <option value="other">Khác</option>
+                <option value="politics">Chính trị</option>
+                <option value="culture">Văn hóa</option>
+                <option value="science">Khoa học</option>
               </select>
+              {errors.category && <p className="err">{errors.category.message}</p>}
             </div>
             <div className="col-span-2">
               <label className="mb-1 block text-sm font-medium text-gray-700">URL ảnh đại diện</label>
-              <input {...register('image_url')} className="input" placeholder="https://..." />
-              {errors.image_url && <p className="err">{errors.image_url.message}</p>}
+              <input {...register('avatar_url')} className="input" placeholder="https://..." />
+              {errors.avatar_url && <p className="err">{errors.avatar_url.message}</p>}
             </div>
             <div className="col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">Tiểu sử</label>
-              <textarea {...register('bio')} rows={4} className="input resize-none" />
+              <label className="mb-1 block text-sm font-medium text-gray-700">Tiểu sử ngắn * <span className="text-gray-400 font-normal">(tối đa 500 ký tự)</span></label>
+              <textarea {...register('bio_short')} rows={3} className="input resize-none" />
+              {errors.bio_short && <p className="err">{errors.bio_short.message}</p>}
+            </div>
+            <div className="col-span-2">
+              <label className="mb-1 block text-sm font-medium text-gray-700">Tiểu sử đầy đủ</label>
+              <textarea {...register('bio_full')} rows={5} className="input resize-none" />
+            </div>
+            <div className="col-span-2">
+              <label className="mb-1 block text-sm font-medium text-gray-700">Câu nói nổi tiếng</label>
+              <textarea {...register('quote')} rows={2} className="input resize-none" />
             </div>
           </div>
 

@@ -8,10 +8,11 @@ import { X } from 'lucide-react'
 
 const schema = z.object({
   name: z.string().min(1, 'Bắt buộc'),
-  hero_id: z.string().optional().nullable(),
+  city: z.string().min(1, 'Bắt buộc'),
+  province: z.string().min(1, 'Bắt buộc'),
+  hero_id: z.string().min(1, 'Bắt buộc'),
   lat: z.preprocess((v) => (v === '' || v == null ? null : Number(v)), z.number().nullable().optional()),
   lng: z.preprocess((v) => (v === '' || v == null ? null : Number(v)), z.number().nullable().optional()),
-  province: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
 })
 
@@ -41,7 +42,15 @@ export function StreetForm({ street, onClose, onSaved }: StreetFormProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async function onSubmit(data: any) {
     data = data as FormData
-    const payload = { ...data, hero_id: data.hero_id || null }
+    const payload = {
+      name: data.name,
+      city: data.city,
+      province: data.province,
+      hero_id: data.hero_id,
+      lat: data.lat ?? null,
+      lng: data.lng ?? null,
+      description: data.description || null,
+    }
     if (street) {
       await supabase.from('streets').update(payload).eq('id', street.id)
     } else {
@@ -65,11 +74,24 @@ export function StreetForm({ street, onClose, onSaved }: StreetFormProps) {
             {errors.name && <p className="err">{errors.name.message}</p>}
           </div>
           <div>
-            <label className="label">Nhân vật lịch sử</label>
+            <label className="label">Nhân vật lịch sử *</label>
             <select {...register('hero_id')} className="input">
-              <option value="">— Không liên kết —</option>
+              <option value="">— Chọn nhân vật —</option>
               {heroes.map((h) => <option key={h.id} value={h.id}>{h.full_name}</option>)}
             </select>
+            {errors.hero_id && <p className="err">{errors.hero_id.message}</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Thành phố *</label>
+              <input {...register('city')} className="input" />
+              {errors.city && <p className="err">{errors.city.message}</p>}
+            </div>
+            <div>
+              <label className="label">Tỉnh/Thành phố *</label>
+              <input {...register('province')} className="input" />
+              {errors.province && <p className="err">{errors.province.message}</p>}
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -80,10 +102,6 @@ export function StreetForm({ street, onClose, onSaved }: StreetFormProps) {
               <label className="label">Kinh độ (lng)</label>
               <input type="number" step="any" {...register('lng')} className="input" />
             </div>
-          </div>
-          <div>
-            <label className="label">Tỉnh/Thành phố</label>
-            <input {...register('province')} className="input" />
           </div>
           <div>
             <label className="label">Mô tả</label>

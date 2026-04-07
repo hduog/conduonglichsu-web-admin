@@ -14,12 +14,19 @@ import { Search, Plus, Pencil, Trash2, CalendarDays } from 'lucide-react'
 const PAGE_SIZE = 20
 
 const eraLabel: Record<HeroEra, string> = {
-  ancient: 'Cổ đại', medieval: 'Trung đại', modern: 'Cận đại', contemporary: 'Hiện đại'
+  hung_vuong: 'Hùng Vương',
+  bac_thuoc: 'Bắc thuộc',
+  ly_tran: 'Lý – Trần',
+  le: 'Lê',
+  nguyen: 'Nguyễn',
+  can_dai: 'Cận đại',
 }
 
 const categoryLabel: Record<HeroCategory, string> = {
-  military: 'Quân sự', political: 'Chính trị', cultural: 'Văn hóa',
-  scientific: 'Khoa học', other: 'Khác'
+  military: 'Quân sự',
+  politics: 'Chính trị',
+  culture: 'Văn hóa',
+  science: 'Khoa học',
 }
 
 export function HeroesPage() {

@@ -6,11 +6,11 @@ import type { Badge } from '@/types/database'
 import { X } from 'lucide-react'
 
 const schema = z.object({
-  name: z.string().min(1, 'Bắt buộc'),
   code: z.string().min(1, 'Bắt buộc').regex(/^[a-z0-9_]+$/, 'Chỉ dùng chữ thường, số, dấu gạch dưới'),
+  name: z.string().min(1, 'Bắt buộc'),
+  description: z.string().min(1, 'Bắt buộc'),
+  icon_url: z.string().url('URL không hợp lệ').min(1, 'Bắt buộc'),
   rarity: z.enum(['common', 'rare', 'epic', 'legendary']),
-  description: z.string().optional().nullable(),
-  image_url: z.string().url('URL không hợp lệ').optional().nullable().or(z.literal('')),
 })
 
 type FormData = z.infer<typeof schema>
@@ -28,11 +28,10 @@ export function BadgeForm({ badge, onClose, onSaved }: BadgeFormProps) {
   })
 
   async function onSubmit(data: FormData) {
-    const payload = { ...data, image_url: data.image_url || null }
     if (badge) {
-      await supabase.from('badges').update(payload).eq('id', badge.id)
+      await supabase.from('badges').update(data).eq('id', badge.id)
     } else {
-      await supabase.from('badges').insert(payload)
+      await supabase.from('badges').insert(data)
     }
     onSaved()
   }
@@ -67,13 +66,14 @@ export function BadgeForm({ badge, onClose, onSaved }: BadgeFormProps) {
               </select>
             </div>
             <div className="col-span-2">
-              <label className="label">URL ảnh huy hiệu</label>
-              <input {...register('image_url')} className="input" placeholder="https://..." />
-              {errors.image_url && <p className="err">{errors.image_url.message}</p>}
+              <label className="label">URL icon huy hiệu *</label>
+              <input {...register('icon_url')} className="input" placeholder="https://..." />
+              {errors.icon_url && <p className="err">{errors.icon_url.message}</p>}
             </div>
             <div className="col-span-2">
-              <label className="label">Mô tả</label>
+              <label className="label">Mô tả (điều kiện nhận) *</label>
               <textarea {...register('description')} rows={3} className="input resize-none" />
+              {errors.description && <p className="err">{errors.description.message}</p>}
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">

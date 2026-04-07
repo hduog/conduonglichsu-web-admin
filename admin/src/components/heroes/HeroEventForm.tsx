@@ -6,11 +6,11 @@ import type { HeroEvent } from '@/types/database'
 import { X } from 'lucide-react'
 
 const schema = z.object({
-  type: z.enum(['birth', 'battle', 'achievement', 'death', 'other']),
-  year: z.preprocess((v) => (v === '' || v == null ? null : Number(v)), z.number().int().nullable().optional()),
+  event_type: z.enum(['birth', 'battle', 'achievement', 'death', 'other']),
+  year: z.preprocess((v) => (v === '' || v == null ? null : Number(v)), z.number().int()),
   title: z.string().min(1, 'Bắt buộc'),
-  description: z.string().optional().nullable(),
-  location: z.string().optional().nullable(),
+  description: z.string().min(1, 'Bắt buộc'),
+  image_url: z.string().url('URL không hợp lệ').optional().nullable().or(z.literal('')),
 })
 
 type FormData = z.infer<typeof schema>
@@ -26,16 +26,23 @@ export function HeroEventForm({ heroId, event, onClose, onSaved }: HeroEventForm
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema) as any,
-    defaultValues: event ?? { type: 'achievement' },
+    defaultValues: event ?? { event_type: 'achievement' },
   })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async function onSubmit(data: any) {
     data = data as FormData
+    const payload = {
+      event_type: data.event_type,
+      year: data.year,
+      title: data.title,
+      description: data.description,
+      image_url: data.image_url || null,
+    }
     if (event) {
-      await supabase.from('hero_events').update(data).eq('id', event.id)
+      await supabase.from('hero_events').update(payload).eq('id', event.id)
     } else {
-      await supabase.from('hero_events').insert({ ...data, hero_id: heroId })
+      await supabase.from('hero_events').insert({ ...payload, hero_id: heroId })
     }
     onSaved()
   }
@@ -52,7 +59,7 @@ export function HeroEventForm({ heroId, event, onClose, onSaved }: HeroEventForm
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Loại *</label>
-              <select {...register('type')} className="input">
+              <select {...register('event_type')} className="input">
                 <option value="birth">Sinh</option>
                 <option value="battle">Chiến trận</option>
                 <option value="achievement">Thành tựu</option>
@@ -61,8 +68,9 @@ export function HeroEventForm({ heroId, event, onClose, onSaved }: HeroEventForm
               </select>
             </div>
             <div>
-              <label className="label">Năm</label>
+              <label className="label">Năm *</label>
               <input type="number" {...register('year')} className="input" />
+              {errors.year && <p className="err">{errors.year.message}</p>}
             </div>
             <div className="col-span-2">
               <label className="label">Tiêu đề *</label>
@@ -70,12 +78,14 @@ export function HeroEventForm({ heroId, event, onClose, onSaved }: HeroEventForm
               {errors.title && <p className="err">{errors.title.message}</p>}
             </div>
             <div className="col-span-2">
-              <label className="label">Địa điểm</label>
-              <input {...register('location')} className="input" />
+              <label className="label">Mô tả *</label>
+              <textarea {...register('description')} rows={3} className="input resize-none" />
+              {errors.description && <p className="err">{errors.description.message}</p>}
             </div>
             <div className="col-span-2">
-              <label className="label">Mô tả</label>
-              <textarea {...register('description')} rows={3} className="input resize-none" />
+              <label className="label">URL ảnh minh hoạ</label>
+              <input {...register('image_url')} className="input" placeholder="https://..." />
+              {errors.image_url && <p className="err">{errors.image_url.message}</p>}
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
