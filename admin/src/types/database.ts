@@ -1,8 +1,9 @@
 export type UserRole = 'user' | 'admin' | 'super_admin'
+export type QuestionAnswerType = 'normal_text' | 'checkbox'
 export type HeroEra = 'hung_vuong' | 'bac_thuoc' | 'ly_tran' | 'le' | 'nguyen' | 'can_dai'
 export type HeroCategory = 'military' | 'culture' | 'science' | 'politics'
 export type EventType = 'birth' | 'battle' | 'achievement' | 'death' | 'other'
-export type ChallengeType = 'checkin' | 'cipher' | 'race' | 'quiz'
+export type ChallengeType = 'checkin' | 'quiz'
 export type ChallengeStatus = 'active' | 'upcoming' | 'ended'
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected'
 export type BadgeRarity = 'common' | 'rare' | 'epic' | 'legendary'
@@ -173,6 +174,29 @@ export interface ExplorationHistory {
   visited_at: string
 }
 
+export interface Question {
+  id: string
+  content: string
+  type_answer: QuestionAnswerType
+  created_at: string
+  updated_at: string
+}
+
+export interface QuestionOption {
+  id: string
+  question_id: string
+  label: string
+  is_correct: boolean
+  sort_order: number
+  created_at: string
+}
+
+export interface ChallengeQuestion {
+  challenge_id: string
+  question_id: string
+  sort_order: number
+}
+
 // Joined types for display
 export interface SubmissionWithUser extends ChallengeSubmission {
   users: Pick<User, 'id' | 'name' | 'avatar_url' | 'email'>
@@ -196,6 +220,17 @@ export interface ChallengeWithRelations extends Challenge {
   badges: Pick<Badge, 'id' | 'name' | 'rarity'> | null
 }
 
+export interface QuestionWithOptions extends Question {
+  question_options: QuestionOption[]
+}
+
+export interface ChallengeWithQuestions extends ChallengeWithRelations {
+  challenge_questions: Array<{
+    sort_order: number
+    questions: QuestionWithOptions
+  }>
+}
+
 // Supabase Database type stub (for createClient generic)
 export type Tables = {
   users: User
@@ -211,4 +246,7 @@ export type Tables = {
   user_badges: UserBadge
   notifications: Notification
   exploration_history: ExplorationHistory
+  questions: Question
+  question_options: QuestionOption
+  challenge_questions: ChallengeQuestion
 }

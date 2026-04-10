@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import {
   Users, BookOpen, MapPin, Trophy, FileText,
-  Award, Bell, LayoutDashboard, ChevronRight, Star
+  Award, Bell, LayoutDashboard, ChevronRight, Star, HelpCircle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -11,6 +11,7 @@ const navItems = [
   { to: '/heroes', icon: BookOpen, label: 'Nhân vật lịch sử' },
   { to: '/streets', icon: MapPin, label: 'Con đường' },
   { to: '/challenges', icon: Trophy, label: 'Thử thách' },
+  { to: '/questions', icon: HelpCircle, label: 'Ngân hàng câu hỏi' },
   { to: '/posts', icon: FileText, label: 'Bài đăng' },
   { to: '/badges', icon: Award, label: 'Huy hiệu' },
   { to: '/notifications', icon: Bell, label: 'Thông báo' },

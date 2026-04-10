@@ -13,6 +13,7 @@ import { SubmissionsPage } from '@/pages/SubmissionsPage'
 import { PostsPage } from '@/pages/PostsPage'
 import { BadgesPage } from '@/pages/BadgesPage'
 import { NotificationsPage } from '@/pages/NotificationsPage'
+import { QuestionsPage } from '@/pages/QuestionsPage'
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
               <Route path="/posts" element={<PostsPage />} />
               <Route path="/badges" element={<BadgesPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
+              <Route path="/questions" element={<QuestionsPage />} />
             </Route>
           </Route>
         </Routes>

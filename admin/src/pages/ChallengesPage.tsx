@@ -15,7 +15,7 @@ import { Search, Plus, Pencil, Trash2, Users } from 'lucide-react'
 const PAGE_SIZE = 20
 
 const typeLabel: Record<ChallengeType, string> = {
-  checkin: 'Check-in', cipher: 'Giải mã', race: 'Đua xe', quiz: 'Câu đố'
+  checkin: 'Check-in', quiz: 'Câu đố'
 }
 
 function getChallengeStatus(c: Challenge): ChallengeStatus {
